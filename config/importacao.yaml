@@ -1,0 +1,7 @@
+limiar_materialidade: 0.01
+conta_icms_recolher: "20140010007"
+centro_custo: "290001"
+filial: "01GDIN0004"
+historico_max_len: 28
+tolerancia_linha: 0.01
+tolerancia_total: 1.00

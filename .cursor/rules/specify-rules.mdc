@@ -1,0 +1,17 @@
+---
+alwaysApply: true
+---
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan at
+`specs/003-difal-frontend/plan.md`.
+
+**Active feature**: `003-difal-frontend`
+**Stack**: FastAPI + React/Vite (app local), SSE para progresso
+**Backend**: `backend/src/difal_api/`
+**Frontend**: `frontend/src/`
+**Start**: `scripts/start-app.ps1` → http://127.0.0.1:8765
+**Contracts**: `specs/003-difal-frontend/contracts/`
+**Motores**: `difal_apuracao` (001), `difal_importacao` (002)
+<!-- SPECKIT END -->

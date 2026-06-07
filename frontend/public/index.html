@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DIFAL Indústria — Madero</title>
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --ok: #16a34a; --err: #dc2626; --text: #e2e8f0; }
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 2rem; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+    .sub { color: #94a3b8; margin-bottom: 2rem; }
+    .card { background: var(--card); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; max-width: 720px; }
+    label { display: block; margin: 0.75rem 0 0.25rem; font-size: 0.9rem; }
+    input, select, button { font-size: 1rem; padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: var(--text); }
+    button { background: var(--accent); color: #0f172a; border: none; cursor: pointer; font-weight: 600; margin-top: 1rem; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .steps { list-style: none; padding: 0; }
+    .steps li { padding: 0.5rem 0; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; }
+    .badge { padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.8rem; }
+    .pending { background: #475569; }
+    .running { background: #ca8a04; color: #000; }
+    .completed { background: var(--ok); }
+    .failed { background: var(--err); }
+    .skipped { background: #64748b; }
+    #log { font-size: 0.85rem; color: #94a3b8; min-height: 2rem; }
+    .valid-ok { color: var(--ok); }
+    .valid-err { color: var(--err); }
+  </style>
+</head>
+<body>
+  <h1>DIFAL Indústria — Madero</h1>
+  <p class="sub">Seleção de arquivos e acompanhamento do processamento</p>
+
+  <div class="card" id="form-card">
+    <label>Modo</label>
+    <select id="mode">
+      <option value="completo">Completo (BI → DIFAL → Importação)</option>
+      <option value="somente_apuracao">Somente apuração DIFAL</option>
+      <option value="somente_importacao">Somente INDUSTRIA-IMPORTAÇÃO</option>
+    </select>
+    <label>Período (MM/AAAA)</label>
+    <input id="periodo" value="05/2026" />
+    <label>Corte dia (opcional)</label>
+    <input id="corte" type="number" min="1" max="31" placeholder="28" />
+    <label>Arquivo BI (.xlsx)</label>
+    <input type="file" id="bi-file" accept=".xlsx" />
+    <span id="bi-status"></span>
+    <label>Arquivo DIFAL (.xlsx) — modo importação</label>
+    <input type="file" id="difal-file" accept=".xlsx" />
+    <button id="btn-start">Iniciar processamento</button>
+  </div>
+
+  <div class="card" id="progress-card" hidden>
+    <h2>Processamento <span id="job-id"></span></h2>
+    <ul class="steps" id="steps"></ul>
+    <p id="log"></p>
+    <button id="btn-download" hidden>Baixar planilha</button>
+  </div>
+
+  <script>
+    const API = '/api/v1';
+    let biUploadId = null;
+    let difalUploadId = null;
+    let currentJobId = null;
+
+    async function uploadFile(file, type) {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('expected_type', type);
+      const r = await fetch(API + '/uploads', { method: 'POST', body: fd });
+      return r.json();
+    }
+
+    document.getElementById('bi-file').addEventListener('change', async (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const res = await uploadFile(f, 'bi');
+      biUploadId = res.id;
+      const el = document.getElementById('bi-status');
+      el.textContent = res.valid ? ' ✓ Válido' : ' ✗ ' + (res.errors || []).join(', ');
+      el.className = res.valid ? 'valid-ok' : 'valid-err';
+    });
+
+    document.getElementById('difal-file').addEventListener('change', async (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const res = await uploadFile(f, 'difal');
+      difalUploadId = res.id;
+    });
+
+    document.getElementById('btn-start').addEventListener('click', async () => {
+      const mode = document.getElementById('mode').value;
+      const fd = new FormData();
+      fd.append('mode', mode);
+      fd.append('periodo', document.getElementById('periodo').value);
+      const corte = document.getElementById('corte').value;
+      if (corte) fd.append('corte_dia', corte);
+      if (biUploadId) fd.append('bi_upload_id', biUploadId);
+      if (difalUploadId) fd.append('difal_upload_id', difalUploadId);
+
+      const r = await fetch(API + '/jobs', { method: 'POST', body: fd });
+      if (!r.ok) { alert(await r.text()); return; }
+      const job = await r.json();
+      currentJobId = job.id;
+      document.getElementById('form-card').hidden = true;
+      document.getElementById('progress-card').hidden = false;
+      document.getElementById('job-id').textContent = job.id.slice(0, 8);
+      pollJob(job.id);
+    });
+
+    async function pollJob(id) {
+      const r = await fetch(API + '/jobs/' + id);
+      const job = await r.json();
+      const ul = document.getElementById('steps');
+      ul.innerHTML = (job.steps || []).map(s =>
+        `<li><span>${s.label}</span><span class="badge ${s.status}">${s.status} ${s.progress_pct || 0}%</span></li>`
+      ).join('');
+      document.getElementById('log').textContent = job.error_summary || job.result?.reconciliacao_status || job.status;
+
+      if (job.status === 'completed') {
+        document.getElementById('btn-download').hidden = false;
+        document.getElementById('btn-download').onclick = () => window.location = API + '/jobs/' + id + '/download';
+        return;
+      }
+      if (job.status === 'failed') return;
+      setTimeout(() => pollJob(id), 2000);
+    }
+  </script>
+</body>
+</html>

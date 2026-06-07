@@ -1,0 +1,13 @@
+aliquota_interna_pr: 19.5
+filial: "01GDIN0004"
+cfops_escopo:
+  - "2551"
+  - "2556"
+  - "2407"
+ncm_carga_especial:
+  "85437099":
+    carga_efetiva: 8.80
+    ufs_aplicaveis: ["RS", "SC", "PR", "SP", "RJ", "MG"]
+conta_por_cfop:
+  "2551": "12050010100"
+  "2556": null
