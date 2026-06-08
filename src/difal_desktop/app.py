@@ -13,6 +13,7 @@ from tkinter import filedialog, messagebox, ttk
 from difal_apuracao.reader import validate_bi_layout
 from difal_api import job_store
 from difal_api.orchestrator import STEPS, run_job
+from difal_desktop.ncm_editor import open_ncm_editor
 from difal_desktop.paths import app_root, find_referencia_workbook, setup_runtime
 
 MODES = [
@@ -95,7 +96,8 @@ class DifalDesktopApp:
         self.open_btn = ttk.Button(btn_frm, text="Abrir planilha gerada", command=self._open_result, state=tk.DISABLED)
         self.open_btn.pack(side=tk.LEFT, padx=(0, 8))
         self.folder_btn = ttk.Button(btn_frm, text="Abrir pasta de saída", command=self._open_output_dir, state=tk.DISABLED)
-        self.folder_btn.pack(side=tk.LEFT)
+        self.folder_btn.pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Button(btn_frm, text="Regras NCM…", command=lambda: open_ncm_editor(self.root)).pack(side=tk.LEFT)
 
         ttk.Separator(frm).grid(row=10, column=0, columnspan=3, sticky="ew", pady=8)
 

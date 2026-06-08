@@ -56,3 +56,7 @@ class LinhaDifal:
     valor_icms_complementar: float
     novo_difal: float
     ajuste: float
+    metodo_calculo: str = "formula_padrao"
+    ncm_regra_aplicada: str = ""
+    carga_normativa_ncm: float | None = None
+    carga_efetiva_bi: float | None = None

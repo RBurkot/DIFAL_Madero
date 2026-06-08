@@ -1,0 +1,148 @@
+# Regras fiscais por NCM — editável pela interface desktop.
+# vigencia_fim: null = sem data de encerramento (YYYY-MM-DD ou DD/MM/AAAA).
+
+regras:
+- ncm: '85437099'
+  carga_tributaria_pct: 8.8
+  ufs_origem:
+  - RS
+  - SC
+  - PR
+  - SP
+  - RJ
+  - MG
+  exclusao_uf:
+  - ES
+  tipo: interestadual_sul_sudeste
+  metodo_novo_difal: formula_coluna_z
+  vigencia_inicio: null
+  vigencia_fim: null
+- ncm: '84138100'
+  carga_tributaria_pct: 7.0
+  ufs_origem:
+  - RS
+  - SC
+  - PR
+  - SP
+  - RJ
+  - MG
+  exclusao_uf:
+  - ES
+  tipo: interestadual_sul_sudeste
+  metodo_novo_difal: formula_coluna_z
+  vigencia_inicio: null
+  vigencia_fim: null
+- ncm: '73269090'
+  carga_tributaria_pct: 7.0
+  ufs_origem:
+  - RS
+  - SC
+  - PR
+  - SP
+  - RJ
+  - MG
+  exclusao_uf:
+  - ES
+  tipo: interestadual_sul_sudeste
+  metodo_novo_difal: formula_coluna_z
+  vigencia_inicio: null
+  vigencia_fim: null
+  observacao: null
+- ncm: '84198190'
+  carga_tributaria_pct: 8.8
+  ufs_origem:
+  - RS
+  - SC
+  - PR
+  - SP
+  - RJ
+  - MG
+  exclusao_uf:
+  - ES
+  tipo: interestadual_sul_sudeste
+  metodo_novo_difal: formula_coluna_z
+  vigencia_inicio: null
+  vigencia_fim: null
+- ncm: '73181500'
+  carga_tributaria_pct: 12.0
+  ufs_origem: null
+  exclusao_uf: []
+  tipo: industrializacao_cad_icms
+  metodo_novo_difal: formula_coluna_z
+  vigencia_inicio: null
+  vigencia_fim: null
+- ncm: '84223029'
+  carga_tributaria_pct: 8.8
+  ufs_origem:
+  - RS
+  - SC
+  - PR
+  - SP
+  - RJ
+  - MG
+  exclusao_uf:
+  - ES
+  tipo: interestadual_sul_sudeste
+  metodo_novo_difal: formula_coluna_z
+  vigencia_inicio: null
+  vigencia_fim: null
+- ncm: '84243010'
+  carga_tributaria_pct: 8.8
+  ufs_origem:
+  - RS
+  - SC
+  - PR
+  - SP
+  - RJ
+  - MG
+  exclusao_uf:
+  - ES
+  tipo: interestadual_sul_sudeste
+  metodo_novo_difal: formula_coluna_z
+  vigencia_inicio: null
+  vigencia_fim: null
+- ncm: '84186999'
+  carga_tributaria_pct: 8.8
+  ufs_origem:
+  - RS
+  - SC
+  - PR
+  - SP
+  - RJ
+  - MG
+  exclusao_uf:
+  - ES
+  tipo: interestadual_sul_sudeste
+  metodo_novo_difal: formula_coluna_z
+  vigencia_inicio: null
+  vigencia_fim: null
+- ncm: '84798940'
+  carga_tributaria_pct: 7.0
+  ufs_origem:
+  - RS
+  - SC
+  - PR
+  - SP
+  - RJ
+  - MG
+  exclusao_uf:
+  - ES
+  tipo: interestadual_sul_sudeste
+  metodo_novo_difal: formula_coluna_z
+  vigencia_inicio: null
+  vigencia_fim: null
+- ncm: '84818097'
+  carga_tributaria_pct: 8.8
+  ufs_origem:
+  - RS
+  - SC
+  - PR
+  - SP
+  - RJ
+  - MG
+  exclusao_uf:
+  - ES
+  tipo: interestadual_sul_sudeste
+  metodo_novo_difal: formula_coluna_z
+  vigencia_inicio: null
+  vigencia_fim: null

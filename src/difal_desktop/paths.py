@@ -53,3 +53,7 @@ def setup_runtime() -> None:
     os.environ.setdefault("DIFAL_ROOT", str(app_root()))
     os.environ.setdefault("DIFAL_CONFIG_ROOT", str(config_root()))
     os.environ.setdefault("DIFAL_DATA_ROOT", str(data_root()))
+    # Garante cópia gravável de ncm_regras.yaml ao lado do exe/projeto
+    from difal_apuracao.ncm_rules import ncm_regras_path
+
+    ncm_regras_path()

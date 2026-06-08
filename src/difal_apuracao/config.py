@@ -11,7 +11,6 @@ class ApuracaoConfig(BaseModel):
     filial: str = "01GDIN0004"
     cfops_escopo: list[str] = Field(default_factory=lambda: ["2551", "2556", "2407"])
     sb1_workbook: str | None = None
-    ncm_carga_especial: dict[str, dict[str, Any]] = Field(default_factory=dict)
     conta_por_cfop: dict[str, str | None] = Field(default_factory=dict)
     conta_por_grupo: dict[str, str] = Field(default_factory=dict)
 
