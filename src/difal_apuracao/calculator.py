@@ -18,7 +18,7 @@ class ResultadoCalculo:
     metodo_calculo: str
     ncm_regra_aplicada: str
     carga_normativa_ncm: float | None
-    carga_efetiva_bi: float | None
+    memoria_calculo: str = ""
 
 
 def _as_percent(value: float) -> float:
@@ -58,6 +58,52 @@ def _auditoria_ncm(regra: RegraNcm | None) -> tuple[str, float | None]:
     return regra.ncm, regra.carga_tributaria_pct
 
 
+def _fmt_valor(value: float) -> str:
+    return f"{value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def _fmt_pct(value: float) -> str:
+    pct = _as_percent(value)
+    s = f"{pct:.4f}".rstrip("0").rstrip(".")
+    return s.replace(".", ",")
+
+
+def _memoria_formula_coluna_z(
+    linha: LinhaBI,
+    ncm: str,
+    carga_pct: float,
+    novo: float,
+) -> str:
+    carga = _as_percent(carga_pct) / 100.0
+    vc, vi = linha.valor_contabil, linha.valor_icms
+    base = (vc - vi) / (1.0 - carga) if carga < 1 else 0.0
+    return " | ".join([
+        f"NCM {ncm} | metodo formula_coluna_z | carga normativa {_fmt_pct(carga_pct)}% (ncm_regras.yaml)",
+        f"Base = (VC - VI) / (1 - carga) = ({_fmt_valor(vc)} - {_fmt_valor(vi)}) / (1 - {_fmt_pct(carga_pct)}%) = {_fmt_valor(base)}",
+        f"NOVO DIFAL = Base x carga - VI = {_fmt_valor(base)} x {_fmt_pct(carga_pct)}% - {_fmt_valor(vi)} = {_fmt_valor(novo)}",
+    ])
+
+
+def _memoria_formula_padrao(linha: LinhaBI, ncm: str | None, novo: float) -> str:
+    u = _as_percent(linha.aliquota_compl)
+    v = _as_percent(linha.aliquota_icms_complementar)
+    vc = linha.valor_contabil
+    divisor = (100 - u) / 100
+    prefix = f"NCM {ncm} | " if ncm else ""
+    return " | ".join([
+        f"{prefix}metodo formula_padrao (base dupla)",
+        f"NOVO DIFAL = VC / ((100-U)/100) x V% = {_fmt_valor(vc)} / {divisor:.4f} x {_fmt_pct(v)}% = {_fmt_valor(novo)}",
+    ])
+
+
+def _memoria_carga_tributaria(linha: LinhaBI, ncm: str, carga_pct: float, novo: float) -> str:
+    vc = linha.valor_contabil
+    return " | ".join([
+        f"NCM {ncm} | metodo carga_tributaria | carga {_fmt_pct(carga_pct)}% (ncm_regras.yaml)",
+        f"NOVO DIFAL = VC x carga = {_fmt_valor(vc)} x {_fmt_pct(carga_pct)}% = {_fmt_valor(novo)}",
+    ])
+
+
 def _calc_novo_difal(linha: LinhaBI, regras_ncm: dict | None = None) -> ResultadoCalculo:
     """
     Prioridade do novo_difal:
@@ -71,7 +117,6 @@ def _calc_novo_difal(linha: LinhaBI, regras_ncm: dict | None = None) -> Resultad
     regras_ncm = regras_ncm if regras_ncm is not None else load_regras_ncm(data_referencia=data_ref)
     regra = regra_aplicavel(linha.ncm, linha.estado, regras_ncm, data_ref)
     ncm_regra, carga_norm = _auditoria_ncm(regra)
-    carga_bi = linha.carga_efetiva_difal if linha.carga_efetiva_difal and linha.carga_efetiva_difal > 0 else None
     metodo_config = regra.metodo_novo_difal if regra else "formula_padrao"
 
     if (
@@ -79,34 +124,35 @@ def _calc_novo_difal(linha: LinhaBI, regras_ncm: dict | None = None) -> Resultad
         and carga_norm is not None
         and metodo_config not in ("formula_padrao", "carga_tributaria")
     ):
+        novo = _calc_formula_coluna_z(linha.valor_contabil, linha.valor_icms, carga_norm)
         return ResultadoCalculo(
-            novo_difal=_calc_formula_coluna_z(
-                linha.valor_contabil, linha.valor_icms, carga_norm
-            ),
+            novo_difal=novo,
             metodo_calculo="formula_coluna_z",
             ncm_regra_aplicada=ncm_regra,
             carga_normativa_ncm=carga_norm,
-            carga_efetiva_bi=carga_bi,
+            memoria_calculo=_memoria_formula_coluna_z(linha, ncm_regra, carga_norm, novo),
         )
 
     if metodo_config == "carga_tributaria" and regra and regra.carga_tributaria_pct is not None:
+        novo = linha.valor_contabil * regra.carga_tributaria_pct / 100.0
         return ResultadoCalculo(
-            novo_difal=linha.valor_contabil * regra.carga_tributaria_pct / 100.0,
+            novo_difal=novo,
             metodo_calculo="carga_tributaria",
             ncm_regra_aplicada=ncm_regra,
             carga_normativa_ncm=carga_norm,
-            carga_efetiva_bi=carga_bi,
+            memoria_calculo=_memoria_carga_tributaria(linha, ncm_regra, regra.carga_tributaria_pct, novo),
         )
 
     metodo = "formula_padrao_ncm" if regra else "formula_padrao"
+    novo = _calc_formula_padrao(
+        linha.valor_contabil, linha.aliquota_compl, linha.aliquota_icms_complementar
+    )
     return ResultadoCalculo(
-        novo_difal=_calc_formula_padrao(
-            linha.valor_contabil, linha.aliquota_compl, linha.aliquota_icms_complementar
-        ),
+        novo_difal=novo,
         metodo_calculo=metodo,
         ncm_regra_aplicada=ncm_regra,
         carga_normativa_ncm=carga_norm,
-        carga_efetiva_bi=carga_bi,
+        memoria_calculo=_memoria_formula_padrao(linha, ncm_regra or None, novo),
     )
 
 
@@ -162,7 +208,7 @@ def calcular_linha(linha: LinhaBI, config: ApuracaoConfig) -> LinhaDifal:
         metodo_calculo=resultado.metodo_calculo,
         ncm_regra_aplicada=resultado.ncm_regra_aplicada,
         carga_normativa_ncm=resultado.carga_normativa_ncm,
-        carga_efetiva_bi=resultado.carga_efetiva_bi,
+        memoria_calculo=resultado.memoria_calculo,
     )
 
 

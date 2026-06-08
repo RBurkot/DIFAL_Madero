@@ -12,7 +12,7 @@ DIFAL_HEADERS = [
     "TOTAL", "DESCONTO", "DESPESAS", "FRETE", "VALOR IPI ", "ICMS RETIDO",
     "VALOR CONTÁBIL", "ALÍQUOTA ICMS", "VALOR ICMS", "ALÍQUOTA COMPLEMENTAR",
     "ALIQUOTA ICMS COMPLEMENTAR", "VALOR ICMS COMPLEMENTAR", "NOVO DIFAL", "AJUSTE",
-    "METODO CALCULO", "NCM REGRA", "CARGA NORMATIVA NCM", "CARGA EFETIVA BI",
+    "METODO CALCULO", "NCM REGRA", "CARGA NORMATIVA NCM", "MEMORIA CALCULO",
 ]
 
 
@@ -47,7 +47,7 @@ def write_difal_sheet(
             l.valor_ipi, l.icms_retido, l.valor_contabil, l.aliquota_icms,
             l.valor_icms, l.aliquota_complementar, l.aliquota_icms_complementar,
             l.valor_icms_complementar, l.novo_difal, l.ajuste,
-            l.metodo_calculo, l.ncm_regra_aplicada, l.carga_normativa_ncm, l.carga_efetiva_bi,
+            l.metodo_calculo, l.ncm_regra_aplicada, l.carga_normativa_ncm, l.memoria_calculo,
         ])
 
     output.parent.mkdir(parents=True, exist_ok=True)

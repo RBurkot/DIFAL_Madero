@@ -85,6 +85,8 @@ def test_ncm_especial_73269090_usa_formula_coluna_z_com_carga_7_yaml():
     assert resultado.metodo_calculo == "formula_coluna_z"
     assert resultado.carga_normativa_ncm == 7.0
     assert abs(resultado.novo_difal - _calc_formula_coluna_z(1285.5, 154.26, 7.0)) < 0.01
+    assert "73269090" in resultado.memoria_calculo
+    assert "formula_coluna_z" in resultado.memoria_calculo
 
 
 def test_formula_coluna_z_ncm_73269090():
@@ -120,11 +122,21 @@ def test_calcular_linha_uses_d1_icmscom():
     assert abs(out.ajuste - (out.novo_difal - 885.47)) < 0.01
     assert out.conta_contabil not in ("#N/A", "#REF!", "")
     assert out.metodo_calculo == "formula_padrao"
-    assert out.carga_efetiva_bi == 9.316759
+    assert "formula_padrao" in out.memoria_calculo
+    assert "10.800,00" in out.memoria_calculo
 
 
 def test_writer_inclui_colunas_auditoria():
     assert "METODO CALCULO" in DIFAL_HEADERS
     assert "NCM REGRA" in DIFAL_HEADERS
     assert "CARGA NORMATIVA NCM" in DIFAL_HEADERS
-    assert "CARGA EFETIVA BI" in DIFAL_HEADERS
+    assert "MEMORIA CALCULO" in DIFAL_HEADERS
+    assert "CARGA EFETIVA BI" not in DIFAL_HEADERS
+    assert DIFAL_HEADERS.index("MEMORIA CALCULO") == 28  # coluna AC (29)
+
+
+def test_todas_linhas_tem_memoria_calculo():
+    resultado = _calc_novo_difal(_linha_base(), load_regras_ncm())
+    assert resultado.metodo_calculo == "formula_padrao"
+    assert "formula_padrao" in resultado.memoria_calculo
+    assert "NOVO DIFAL" in resultado.memoria_calculo
