@@ -8,6 +8,8 @@ from pydantic import BaseModel
 class ImportacaoConfig(BaseModel):
     limiar_materialidade: float = 0.01
     conta_icms_recolher: str = "20140010007"
+    conta_imobilizado_2551: str = "12050010100"
+    sb1_workbook: str | None = None
     centro_custo: str = "290001"
     filial: str = "01GDIN0004"
     historico_max_len: int = 28

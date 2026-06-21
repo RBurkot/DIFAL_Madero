@@ -11,10 +11,12 @@ a = Analysis(
     binaries=[],
     datas=[
         (str(root / "config"), "config"),
+        (str(root / "logo_madero.jpeg"), "assets"),
     ],
     hiddenimports=[
         "openpyxl",
         "openpyxl.cell._writer",
+        "PIL",
         "yaml",
         "pydantic",
         "typer",

@@ -6,7 +6,7 @@ from difal_apuracao.config import load_config as load_apuracao_config
 from difal_apuracao.reader import read_bi
 from difal_apuracao.writer import write_difal_sheet
 from difal_importacao.config import load_config as load_importacao_config
-from difal_importacao.reader import read_auxiliar_sft, read_difal
+from difal_importacao.reader import load_sft_lookups, read_difal
 from difal_importacao.reconciliation import reconciliar, save_relatorio
 from difal_importacao.transformer import gerar_lancamentos
 from difal_importacao.writer import write_importacao_sheet
@@ -69,10 +69,20 @@ def run_job(job_id: str, referencia: Path | None = None) -> None:
         if mode in ("completo", "somente_importacao"):
             _update_step(job, "importacao", "running", 20)
             periodo_obj, linhas = read_difal(source_for_import)
-            lookups = read_auxiliar_sft(source_for_import, "SFT ")
-            if not lookups and referencia and referencia.exists():
-                lookups = read_auxiliar_sft(referencia, "SFT ")
-            result = gerar_lancamentos(linhas, periodo_obj, cfg_i, lookups)
+            lookups = load_sft_lookups(source_for_import, referencia)
+            ref_path = str(referencia) if referencia and referencia.exists() else None
+            if ref_path:
+                cfg_i = cfg_i.model_copy(update={"sb1_workbook": ref_path})
+            result = gerar_lancamentos(
+                linhas, periodo_obj, cfg_i, lookups,
+                sb1_workbook=ref_path,
+                entradas_workbook=ref_path or source_for_import,
+            )
+            enriquecidos = sum(
+                1 for l in result.lancamentos if l.nome_fornecedor and l.data_emissao and l.data_entrada
+            )
+            job["metrics"]["sft_chaves_indexadas"] = len(lookups)
+            job["metrics"]["lancamentos_enriquecidos_sft"] = enriquecidos
             write_importacao_sheet(result.lancamentos, result.totais_difal, workbook_out, source_for_import)
             job["metrics"]["lancamentos_gerados"] = len(result.lancamentos)
             _update_step(job, "importacao", "completed", 100)

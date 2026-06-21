@@ -9,6 +9,28 @@ HEADER_ROW = 3
 DATA_START = 4
 
 
+def normalize_codigo(val) -> str:
+    s = str(val).strip()
+    if s.endswith(".0"):
+        head = s[:-2]
+        if head:
+            return head
+    return s
+
+
+def normalize_cfop(val) -> str:
+    s = str(val).strip()
+    if s.endswith(".0") and s[:-2].isdigit():
+        return s[:-2]
+    try:
+        num = float(s.replace(",", "."))
+        if num == int(num):
+            return str(int(num))
+    except ValueError:
+        pass
+    return s
+
+
 def _find_sb1_workbook(explicit: Path | None) -> Path | None:
     if explicit and explicit.exists():
         return explicit
@@ -41,10 +63,11 @@ def load_sb1_contas(workbook: str) -> dict[str, str]:
     for row in ws.iter_rows(min_row=DATA_START, values_only=True):
         if not row or row[0] is None:
             continue
-        codigo = str(row[0]).strip()
+        codigo = normalize_codigo(row[0])
         cta_custo = row[3]
         if cta_custo is not None and str(cta_custo).strip():
-            mapping[codigo] = str(int(cta_custo)) if isinstance(cta_custo, (int, float)) else str(cta_custo).strip()
+            conta = str(int(cta_custo)) if isinstance(cta_custo, (int, float)) else str(cta_custo).strip()
+            mapping[codigo] = conta
     wb.close()
     return mapping
 
@@ -59,7 +82,7 @@ def resolve_conta_produto(
 ) -> str:
     wb_path = _find_sb1_workbook(Path(sb1_workbook) if sb1_workbook else None)
     if wb_path:
-        conta = load_sb1_contas(str(wb_path)).get(cod_produto.strip())
+        conta = load_sb1_contas(str(wb_path)).get(normalize_codigo(cod_produto))
         if conta:
             return conta
 

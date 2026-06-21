@@ -4,7 +4,7 @@ from pathlib import Path
 import typer
 
 from difal_importacao.config import load_config
-from difal_importacao.reader import read_auxiliar_sft, read_difal
+from difal_importacao.reader import load_sft_lookups, read_difal
 from difal_importacao.reconciliation import reconciliar, save_relatorio
 from difal_importacao.transformer import gerar_lancamentos
 from difal_importacao.writer import write_importacao_sheet
@@ -27,10 +27,14 @@ def gerar(
     periodo, linhas = read_difal(entrada, aba_difal)
     lookups: dict = {}
     if not sem_enriquecimento:
-        lookups = read_auxiliar_sft(entrada, aba_auxiliar)
-        if not lookups and reconciliar_ref:
-            lookups = read_auxiliar_sft(reconciliar_ref, aba_auxiliar)
-    result = gerar_lancamentos(linhas, periodo, cfg, lookups)
+        lookups = load_sft_lookups(entrada, reconciliar_ref, aba_auxiliar)
+    if reconciliar_ref:
+        cfg = cfg.model_copy(update={"sb1_workbook": str(reconciliar_ref)})
+    result = gerar_lancamentos(
+        linhas, periodo, cfg, lookups,
+        sb1_workbook=reconciliar_ref,
+        entradas_workbook=reconciliar_ref or entrada,
+    )
 
     out = saida or entrada.parent / f"importacao-{periodo.label.replace('.', '')}.xlsx"
     write_importacao_sheet(result.lancamentos, result.totais_difal, out, entrada)

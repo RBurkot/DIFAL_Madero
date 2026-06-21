@@ -17,6 +17,6 @@ if (Test-Path $exe) {
     Write-Host "Para usar SB1/SFT/reconciliacao, coloque a planilha de referencia"
     Write-Host "(*28*.xlsx) na mesma pasta do executavel ou selecione na interface."
 } else {
-    Write-Error "Build falhou — verifique dist\"
+    Write-Error "Build falhou - verifique a pasta dist"
     exit 1
 }

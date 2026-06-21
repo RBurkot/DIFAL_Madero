@@ -1,5 +1,6 @@
 limiar_materialidade: 0.01
 conta_icms_recolher: "20140010007"
+conta_imobilizado_2551: "12050010100"
 centro_custo: "290001"
 filial: "01GDIN0004"
 historico_max_len: 28

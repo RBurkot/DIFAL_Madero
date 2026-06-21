@@ -14,7 +14,7 @@ from difal_apuracao.reader import validate_bi_layout
 from difal_api import job_store
 from difal_api.orchestrator import STEPS, run_job
 from difal_desktop.ncm_editor import open_ncm_editor
-from difal_desktop.paths import app_root, find_referencia_workbook, setup_runtime
+from difal_desktop.paths import app_root, find_referencia_workbook, logo_path, setup_runtime
 
 MODES = [
     ("completo", "Completo (BI → DIFAL → Importação)"),
@@ -42,23 +42,48 @@ class DifalDesktopApp:
         self.result_workbook: Path | None = None
         self._poll_after_id: str | None = None
         self._worker: threading.Thread | None = None
+        self._logo_img = None
 
         self._build_ui()
         self._refresh_mode_fields()
+
+    def _load_logo(self):
+        path = logo_path()
+        if not path:
+            return None
+        try:
+            from PIL import Image, ImageTk
+
+            img = Image.open(path)
+            max_w = 220
+            if img.width > max_w:
+                ratio = max_w / img.width
+                img = img.resize((max_w, int(img.height * ratio)), Image.Resampling.LANCZOS)
+            return ImageTk.PhotoImage(img)
+        except Exception:
+            return None
 
     def _build_ui(self) -> None:
         pad = {"padx": 12, "pady": 4}
         frm = ttk.Frame(self.root, padding=12)
         frm.pack(fill=tk.BOTH, expand=True)
 
-        ttk.Label(frm, text="DIFAL Indústria — Madero", font=("Segoe UI", 14, "bold")).grid(
-            row=0, column=0, columnspan=3, sticky="w", pady=(0, 4)
+        header = ttk.Frame(frm)
+        header.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 12))
+        logo = self._load_logo()
+        if logo:
+            self._logo_img = logo
+            ttk.Label(header, image=logo).pack(side=tk.LEFT, padx=(0, 16))
+        title_frm = ttk.Frame(header)
+        title_frm.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        ttk.Label(title_frm, text="DIFAL Indústria — Madero", font=("Segoe UI", 14, "bold")).pack(
+            anchor="w"
         )
         ttk.Label(
-            frm,
+            title_frm,
             text="Geração de planilhas DIFAL e INDUSTRIA-IMPORTAÇÃO",
             foreground="#555",
-        ).grid(row=1, column=0, columnspan=3, sticky="w", pady=(0, 12))
+        ).pack(anchor="w", pady=(4, 0))
 
         ttk.Label(frm, text="Modo").grid(row=2, column=0, sticky="w", **pad)
         self.mode_var = tk.StringVar(value="completo")

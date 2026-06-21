@@ -1,5 +1,12 @@
 from dataclasses import dataclass
+from pathlib import Path
 
+from difal_apuracao.sb1_lookup import (
+    _find_sb1_workbook,
+    load_sb1_contas,
+    normalize_cfop,
+    normalize_codigo,
+)
 from difal_importacao.config import ImportacaoConfig
 from difal_importacao.models import (
     FornecedorLookup,
@@ -8,7 +15,8 @@ from difal_importacao.models import (
     PeriodoApuracao,
     TotaisConsolidados,
 )
-from difal_importacao.reader import build_chave_rastreio
+from difal_importacao.entradas_bi_lookup import load_entradas_map
+from difal_importacao.reader import build_chave_rastreio, lookup_fornecedor_by_chave
 
 
 @dataclass
@@ -26,32 +34,96 @@ def is_conta_valida(conta: str) -> bool:
     return str(conta).replace(".", "").isdigit()
 
 
+def load_sb1_map(
+    config: ImportacaoConfig,
+    sb1_workbook: Path | str | None = None,
+) -> dict[str, str]:
+    explicit = Path(sb1_workbook) if sb1_workbook else None
+    if explicit is None and config.sb1_workbook:
+        explicit = Path(config.sb1_workbook)
+    wb_path = _find_sb1_workbook(explicit)
+    if not wb_path:
+        return {}
+    return load_sb1_contas(str(wb_path))
+
+
+def resolve_debito_credito(
+    cfop: str,
+    ajuste: float,
+    config: ImportacaoConfig,
+    *,
+    conta_contabil: str = "",
+    cod_produto: str = "",
+    sb1_map: dict[str, str] | None = None,
+) -> tuple[str, str] | None:
+    icms = config.conta_icms_recolher
+    cfop_norm = normalize_cfop(cfop)
+
+    if cfop_norm == "2551":
+        imob = config.conta_imobilizado_2551
+        if ajuste >= 0:
+            return imob, icms
+        return icms, imob
+
+    if cfop_norm == "2556":
+        prod = normalize_codigo(cod_produto)
+        conta_sb1 = (sb1_map or {}).get(prod, "")
+        if not is_conta_valida(conta_sb1) and is_conta_valida(conta_contabil):
+            conta_sb1 = conta_contabil
+        if not is_conta_valida(conta_sb1):
+            return None
+        if ajuste >= 0:
+            return conta_sb1, icms
+        return icms, conta_sb1
+
+    if not is_conta_valida(conta_contabil):
+        return None
+    if ajuste >= 0:
+        return conta_contabil, icms
+    return icms, conta_contabil
+
+
 def transform_linha(
     linha: LinhaApuracaoDifal,
     periodo: PeriodoApuracao,
     config: ImportacaoConfig,
     lookup: FornecedorLookup | None = None,
+    lookups: dict[str, FornecedorLookup] | None = None,
+    sb1_map: dict[str, str] | None = None,
+    item_contabil_map: dict[str, str] | None = None,
 ) -> LancamentoImportacao | None:
     if linha.ajuste == 0:
         return None
     if abs(linha.ajuste) < config.limiar_materialidade:
         return None
-    if not is_conta_valida(linha.conta_contabil):
+
+    contas = resolve_debito_credito(
+        linha.cfop,
+        linha.ajuste,
+        config,
+        conta_contabil=linha.conta_contabil,
+        cod_produto=linha.cod_produto,
+        sb1_map=sb1_map,
+    )
+    if not contas:
         return None
+    debito, credito = contas
 
     chave = build_chave_rastreio(linha.nota_fiscal, linha.fornecedor_cod, linha.cod_produto)
+    if lookup is None and lookups:
+        lookup = lookup_fornecedor_by_chave(lookups, chave)
     loja = lookup.loja if lookup else "0001"
     nome = lookup.nome_fornecedor if lookup and lookup.nome_fornecedor else linha.fornecedor_cod
     cod_f = f"F{linha.fornecedor_cod}{loja}"
 
-    if linha.ajuste > 0:
-        debito, credito = linha.conta_contabil, config.conta_icms_recolher
-    else:
-        debito, credito = config.conta_icms_recolher, linha.conta_contabil
-
     nota_display = int(str(linha.nota_fiscal).lstrip("0") or "0")
     historico_base = f"{nota_display}-{nome}"
     historico = historico_base[: config.historico_max_len]
+
+    prod = normalize_codigo(linha.cod_produto)
+    cod_item = (item_contabil_map or {}).get(prod, "")
+    if not cod_item and lookup and lookup.cod_item_contabil:
+        cod_item = lookup.cod_item_contabil
 
     return LancamentoImportacao(
         loja=loja,
@@ -71,7 +143,7 @@ def transform_linha(
         debito=debito,
         credito=credito,
         centro_custo=config.centro_custo,
-        cod_item_contabil=lookup.cod_item_contabil if lookup else "",
+        cod_item_contabil=cod_item,
         cod_fornecedor_debito=cod_f,
         cod_fornecedor_credito=cod_f,
         valor_lancamento=round(abs(linha.ajuste), 2),
@@ -98,8 +170,13 @@ def gerar_lancamentos(
     periodo: PeriodoApuracao,
     config: ImportacaoConfig,
     lookups: dict[str, FornecedorLookup] | None = None,
+    sb1_workbook: Path | str | None = None,
+    entradas_workbook: Path | str | None = None,
 ) -> TransformResult:
     lookups = lookups or {}
+    has_2556 = any(normalize_cfop(l.cfop) == "2556" for l in linhas)
+    sb1_map = load_sb1_map(config, sb1_workbook) if has_2556 else {}
+    item_contabil_map = load_entradas_map(entradas_workbook, sb1_workbook)
     lancamentos: list[LancamentoImportacao] = []
     excluidas = 0
     excecoes = 0
@@ -110,13 +187,19 @@ def gerar_lancamentos(
         if abs(linha.ajuste) < config.limiar_materialidade:
             excluidas += 1
             continue
-        if not is_conta_valida(linha.conta_contabil):
-            excecoes += 1
-            continue
         chave = build_chave_rastreio(linha.nota_fiscal, linha.fornecedor_cod, linha.cod_produto)
-        lanc = transform_linha(linha, periodo, config, lookups.get(chave))
+        lanc = transform_linha(
+            linha,
+            periodo,
+            config,
+            lookups=lookups,
+            sb1_map=sb1_map,
+            item_contabil_map=item_contabil_map,
+        )
         if lanc:
             lancamentos.append(lanc)
+        else:
+            excecoes += 1
 
     totais_difal = calc_totais(linhas)
     totais_eleg = TotaisConsolidados()

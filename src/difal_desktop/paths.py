@@ -48,6 +48,19 @@ def find_referencia_workbook() -> Path | None:
     return None
 
 
+def logo_path() -> Path | None:
+    candidates = (
+        bundle_root() / "assets" / "logo_madero.jpeg",
+        app_root() / "logo_madero.jpeg",
+        app_root() / "assets" / "logo_madero.jpeg",
+        bundle_root() / "logo_madero.jpeg",
+    )
+    for path in candidates:
+        if path.exists():
+            return path
+    return None
+
+
 def setup_runtime() -> None:
     """Define variáveis usadas pelos módulos de config e job_store."""
     os.environ.setdefault("DIFAL_ROOT", str(app_root()))
